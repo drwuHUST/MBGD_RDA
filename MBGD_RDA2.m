@@ -1,59 +1,55 @@
 function [RMSEtrain,RMSEtest,mStepSize,stdStepSize]=...
-    MBGD_RDA(XTrain,yTrain,XTest,yTest,alpha,rr,P,numMFs,numIt,batchSize)
+    MBGD_RDA2(XTrain,yTrain,XTest,yTest,alpha,rr,P,numRules,numIt,batchSize)
 
 
 % alpha: learning rate
 % rr: regularization coefficient
 % P: dropRule rate
-% numMFs: number of MFs in each input domain
+% numRules: number of rules
 % numIt: maximum number of iterations
 
 beta1=0.9; beta2=0.999;
 
 [N,M]=size(XTrain); NTest=size(XTest,1);
-if batchSize>N; batchSize=N; end
-numMFsVec=numMFs*ones(M,1);
-R=numMFs^M; % number of rules
-C=zeros(M,numMFs); Sigma=C; B=zeros(R,M+1);
-for m=1:M % Initialization
-    C(m,:)=linspace(min(XTrain(:,m)),max(XTrain(:,m)),numMFs);
-    Sigma(m,:)=std(XTrain(:,m));
+batchSize=min(N,batchSize);
+B=zeros(numRules,M+1); % Rule consequents
+% k-means initialization
+[ids,C,sumd] = kmeans(XTrain,numRules,'replicate',10);
+C=C'; sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd',M,1)/M; 
+minSigma=.5*min(Sigma(:));
+for r=1:numRules
+    B(r,1)=mean(yTrain(ids==r));    
 end
-minSigma=min(Sigma(:));
-
 
 %% Iterative update
-mu=zeros(M,numMFs);  RMSEtrain=zeros(1,numIt); RMSEtest=RMSEtrain; mStepSize=RMSEtrain; stdStepSize=RMSEtrain;
+RMSEtrain=zeros(1,numIt); RMSEtest=RMSEtrain; mStepSize=RMSEtrain; stdStepSize=RMSEtrain;
 mC=0; vC=0; mB=0; mSigma=0; vSigma=0; vB=0; yPred=nan(batchSize,1);
 for it=1:numIt
-    deltaC=zeros(M,numMFs); deltaSigma=deltaC;  deltaB=rr*B; deltaB(:,1)=0; % consequent
-    f=ones(batchSize,R); % firing level of rules
+    deltaC=zeros(M,numRules); deltaSigma=deltaC;  deltaB=rr*B; deltaB(:,1)=0; % consequent
+    f=ones(batchSize,numRules); % firing level of rules
     idsTrain=datasample(1:N,batchSize,'replace',false);
     idsGoodTrain=true(batchSize,1);
     for n=1:batchSize
-        for m=1:M % membership grades of MFs
-            mu(m,:)=exp(-(XTrain(idsTrain(n),m)-C(m,:)).^2./(2*Sigma(m,:).^2));
-        end
-        
-        idsKeep=rand(1,R)<=P;
+        idsKeep=rand(1,numRules)<=P;
         f(n,~idsKeep)=0;
-        for r=1:R
+        for r=1:numRules
             if idsKeep(r)
-                idsMFs=idx2vec(r,numMFsVec);
                 for m=1:M
-                    f(n,r)=f(n,r)*mu(m,idsMFs(m));
+                    f(n,r)=f(n,r)*exp(-(XTrain(idsTrain(n),m)-C(m,r))^2/(2*Sigma(m,r)^2));
                 end
             end
         end
         if ~sum(f(n,:)) % special case: all f(n,:)=0; no dropRule
-            idsKeep=true(1,R);
-            f(n,:)=1;
-            for r=1:R
-                idsMFs=idx2vec(r,numMFsVec);
-                for m=1:M
-                    f(n,r)=f(n,r)*mu(m,idsMFs(m));
+            idsKeep=~idsKeep;
+            f(n,idsKeep)=1;
+            for r=1:numRules
+                if idsKeep(r)
+                    for m=1:M
+                        f(n,r)=f(n,r)*exp(-(XTrain(idsTrain(n),m)-C(m,r))^2/(2*Sigma(m,r)^2));
+                    end
                 end
             end
+            idsKeep=true(1,numRules);
         end
         fBar=f(n,:)/sum(f(n,:));
         yR=[1 XTrain(idsTrain(n),:)]*B';
@@ -65,15 +61,14 @@ for it=1:numIt
         end
         
         % Compute delta
-        for r=1:R
+        for r=1:numRules
             if idsKeep(r)
                 temp=(yPred(n)-yTrain(idsTrain(n)))*(yR(r)*sum(f(n,:))-f(n,:)*yR')/sum(f(n,:))^2*f(n,r);
                 if ~isnan(temp) && abs(temp)<inf
-                    vec=idx2vec(r,numMFsVec);
                     % delta of c, sigma, and b
                     for m=1:M
-                        deltaC(m,vec(m))=deltaC(m,vec(m))+temp*(XTrain(idsTrain(n),m)-C(m,vec(m)))/Sigma(m,vec(m))^2;
-                        deltaSigma(m,vec(m))=deltaSigma(m,vec(m))+temp*(XTrain(idsTrain(n),m)-C(m,vec(m)))^2/Sigma(m,vec(m))^3;
+                        deltaC(m,r)=deltaC(m,r)+temp*(XTrain(idsTrain(n),m)-C(m,r))/Sigma(m,r)^2;
+                        deltaSigma(m,r)=deltaSigma(m,r)+temp*(XTrain(idsTrain(n),m)-C(m,r))^2/Sigma(m,r)^3;
                         deltaB(r,m+1)=deltaB(r,m+1)+(yPred(n)-yTrain(idsTrain(n)))*fBar(r)*XTrain(idsTrain(n),m);
                     end
                     % delta of b0
@@ -86,16 +81,11 @@ for it=1:numIt
     % Training error
     RMSEtrain(it)=sqrt(sum((yTrain(idsTrain(idsGoodTrain))-yPred(idsGoodTrain)).^2)/sum(idsGoodTrain));
     % Test error
-    f=ones(NTest,R); % firing level of rules
-    for n=1:NTest
-        for m=1:M % membership grades of MFs
-            mu(m,:)=exp(-(XTest(n,m)-C(m,:)).^2./(2*Sigma(m,:).^2));
-        end
-        
-        for r=1:R % firing levels of rules
-            idsMFs=idx2vec(r,numMFsVec);
+    f=ones(NTest,numRules); % firing level of rules
+    for n=1:NTest        
+        for r=1:numRules % firing levels of rules
             for m=1:M
-                f(n,r)=f(n,r)*mu(m,idsMFs(m));
+                f(n,r)=f(n,r)*exp(-(XTest(n,m)-C(m,r))^2/(2*Sigma(m,r)^2));
             end
         end
     end
