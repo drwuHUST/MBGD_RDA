@@ -15,10 +15,10 @@ batchSize=min(N,batchSize);
 B=zeros(numRules,M+1); % Rule consequents
 % k-means initialization
 [ids,C,sumd] = kmeans(XTrain,numRules,'replicate',10);
-C=C'; sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd',M,1)/M; 
+C=C'; sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd',M,1)/M;
 minSigma=.5*min(Sigma(:));
 for r=1:numRules
-    B(r,1)=mean(yTrain(ids==r));    
+    B(r,1)=mean(yTrain(ids==r));
 end
 
 %% Iterative update
@@ -34,9 +34,7 @@ for it=1:numIt
         f(n,~idsKeep)=0;
         for r=1:numRules
             if idsKeep(r)
-                for m=1:M
-                    f(n,r)=f(n,r)*exp(-(XTrain(idsTrain(n),m)-C(m,r))^2/(2*Sigma(m,r)^2));
-                end
+                f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
             end
         end
         if ~sum(f(n,:)) % special case: all f(n,:)=0; no dropRule
@@ -44,9 +42,7 @@ for it=1:numIt
             f(n,idsKeep)=1;
             for r=1:numRules
                 if idsKeep(r)
-                    for m=1:M
-                        f(n,r)=f(n,r)*exp(-(XTrain(idsTrain(n),m)-C(m,r))^2/(2*Sigma(m,r)^2));
-                    end
+                    f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
                 end
             end
             idsKeep=true(1,numRules);
@@ -82,11 +78,9 @@ for it=1:numIt
     RMSEtrain(it)=sqrt(sum((yTrain(idsTrain(idsGoodTrain))-yPred(idsGoodTrain)).^2)/sum(idsGoodTrain));
     % Test error
     f=ones(NTest,numRules); % firing level of rules
-    for n=1:NTest        
-        for r=1:numRules % firing levels of rules
-            for m=1:M
-                f(n,r)=f(n,r)*exp(-(XTest(n,m)-C(m,r))^2/(2*Sigma(m,r)^2));
-            end
+    for n=1:NTest
+        for r=1:numRules 
+            f(n,r)= prod(exp(-(XTest(n,:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
         end
     end
     yR=[ones(NTest,1) XTest]*B';
