@@ -14,7 +14,7 @@ beta1=0.9; beta2=0.999;
 batchSize=min(N,batchSize);
 B=zeros(numRules,M+1); % Rule consequents
 % k-means initialization
-[ids,C,sumd] = kmeans(XTrain,numRules,'replicate',10);
+[ids,C,sumd] = kmeans(XTrain,numRules,'replicate',3);
 C=C'; sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd',M,1)/M;
 minSigma=.5*min(Sigma(:));
 for r=1:numRules
