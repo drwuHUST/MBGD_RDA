@@ -1,4 +1,4 @@
-clc; clearvars; close all; %rng(0);
+clc; clearvars; close all; rng(0);
 
 Mm=2; % number of MFs in each input domain
 alpha=.01; % initial learning rate
@@ -8,32 +8,46 @@ P=0.5; % DropRule rate
 nIt=500; % number of iterations
 maxFeatures=5; % maximum number of features to use
 
-temp=load('Airfoil.mat'); 
+temp=load('NO2.mat'); 
 data=temp.data;
-X0=data(:,1:end-1); y0=data(:,end); y0=y0-mean(y0);
-X0 = zscore(X0); [N0,M]=size(X0); 
+X=data(:,1:end-1); y=data(:,end); y=y-mean(y);
+X = zscore(X); [N0,M]=size(X); 
+nRules=Mm^M; % number of rules
+N=round(N0*.7);
+idsTrain=datasample(1:N0,N,'replace',false);
+XTrain=X(idsTrain,:); yTrain=y(idsTrain);
+XTest=X; XTest(idsTrain,:)=[]; 
+yTest=y; yTest(idsTrain)=[];
+% Specify the total number of rules; use the original features without dimensionality reduction
+[RMSEtrain1,RMSEtest1]=MBGD_RDA2(XTrain,yTrain,XTest,yTest,alpha,lambda,P,nRules,nIt,Nbs);
+
+% Dimensionality reduction
 if M>maxFeatures
-    [~,XPCA,latent]=pca(X0);
+    [~,XPCA,latent]=pca(X);
     realDim98=find(cumsum(latent)>=.98*sum(latent),1,'first');
     usedDim=min(maxFeatures,realDim98);
-    X0=XPCA(:,1:usedDim); [N0,M]=size(X0);
+    X=XPCA(:,1:usedDim); [N0,M]=size(X);
+    nRules=Mm^M; % number of rules
 end
-numRules=Mm^M; % number of rules
-N=round(N0*.7);
+XTrain=X(idsTrain,:); XTest=X; XTest(idsTrain,:)=[]; 
 
-idsTrain=datasample(1:N0,N,'replace',false);
-XTrain=X0(idsTrain,:); yTrain=y0(idsTrain);
-XTest=X0; XTest(idsTrain,:)=[]; yTest=y0; yTest(idsTrain)=[];
-% Specify the number of MFs in each input domain
-[RMSEtrain,RMSEtest]=MBGD_RDA(XTrain,yTrain,XTest,yTest,alpha,lambda,P,Mm,nIt,Nbs);
-% Specify the total number of rules; more flexible; also more parameters to tune
-[RMSEtrain2,RMSEtest2]=MBGD_RDA2(XTrain,yTrain,XTest,yTest,alpha,lambda,P,numRules,nIt,Nbs);
+% Specify the number of MFs in each input domain; Assume x1 has two MFs
+% X1_1 and X1_2; then, all rules involving the first FS of x1 use the same
+% X1_1, and all rules involving the second FS of x1 use the same X1_2
+[RMSEtrain2,RMSEtest2]=MBGD_RDA(XTrain,yTrain,XTest,yTest,alpha,lambda,P,Mm,nIt,Nbs);
 
-figure; 
-plot(RMSEtrain,'k:','linewidth',2); hold on;
-plot(RMSEtrain2,'b:','linewidth',2);
-plot(RMSEtest,'g-','linewidth',2);
-plot(RMSEtest2,'r-','linewidth',2);
-legend('Training RMSE','Test RMSE','Training RMSE2','Test RMSE2','location','northeast');
+% Specify the total number of rules; each rule uses different membership functions;
+% more parameters to tune, but generally better performance; recommended approach
+[RMSEtrain3,RMSEtest3]=MBGD_RDA2(XTrain,yTrain,XTest,yTest,alpha,lambda,P,nRules,nIt,Nbs);
+
+%% Plot results
+figure('Position', get(0, 'Screensize')); 
+plot(RMSEtrain1,'r:','linewidth',2); hold on;
+plot(RMSEtest1,'r-','linewidth',2);
+plot(RMSEtrain2,'k:','linewidth',2);
+plot(RMSEtest2,'k-','linewidth',2);
+plot(RMSEtrain3,'b:','linewidth',2);
+plot(RMSEtest3,'b-','linewidth',2);
+legend('Training RMSE1','Test RMSE1','Training RMSE2','Test RMSE2','Training RMSE3','Test RMSE3','location','northeast');
 xlabel('Iteration'); ylabel('RMSE');
 
