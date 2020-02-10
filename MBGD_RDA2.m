@@ -16,8 +16,8 @@ Nbs=min(N,Nbs);
 B=zeros(nRules,M+1); % Rule consequents
 % k-means initialization
 [ids,C,sumd] = kmeans(XTrain,nRules,'replicate',3);
-C=C'; sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd',M,1)/M;
-minSigma=.5*min(Sigma(:));
+sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd,1,M)/M;
+minSigma=.01*min(Sigma(:));
 for r=1:nRules
     B(r,1)=mean(yTrain(ids==r));
 end
@@ -26,7 +26,7 @@ end
 RMSEtrain=zeros(1,nIt); RMSEtest=RMSEtrain; mStepSize=RMSEtrain; stdStepSize=RMSEtrain;
 mC=0; vC=0; mB=0; mSigma=0; vSigma=0; vB=0; yPred=nan(Nbs,1);
 for it=1:nIt
-    deltaC=zeros(M,nRules); deltaSigma=deltaC;  deltaB=rr*B; deltaB(:,1)=0; % consequent
+    deltaC=zeros(nRules,M); deltaSigma=deltaC;  deltaB=rr*B; deltaB(:,1)=0; % consequent
     f=ones(Nbs,nRules); % firing level of rules
     idsTrain=datasample(1:N,Nbs,'replace',false);
     idsGoodTrain=true(Nbs,1);
@@ -35,7 +35,7 @@ for it=1:nIt
         f(n,~idsKeep)=0;
         for r=1:nRules
             if idsKeep(r)
-                f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
+                f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)-C(r,:)).^2./(2*Sigma(r,:).^2)));
             end
         end
         if ~sum(f(n,:)) % special case: all f(n,:)=0; no dropRule
@@ -43,7 +43,7 @@ for it=1:nIt
             f(n,idsKeep)=1;
             for r=1:nRules
                 if idsKeep(r)
-                    f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
+                    f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)-C(r,:)).^2./(2*Sigma(r,:).^2)));
                 end
             end
             idsKeep=true(1,nRules);
@@ -64,8 +64,8 @@ for it=1:nIt
                 if ~isnan(temp) && abs(temp)<inf
                     % delta of c, sigma, and b
                     for m=1:M
-                        deltaC(m,r)=deltaC(m,r)+temp*(XTrain(idsTrain(n),m)-C(m,r))/Sigma(m,r)^2;
-                        deltaSigma(m,r)=deltaSigma(m,r)+temp*(XTrain(idsTrain(n),m)-C(m,r))^2/Sigma(m,r)^3;
+                        deltaC(r,m)=deltaC(r,m)+temp*(XTrain(idsTrain(n),m)-C(r,m))/Sigma(r,m)^2;
+                        deltaSigma(r,m)=deltaSigma(r,m)+temp*(XTrain(idsTrain(n),m)-C(r,m))^2/Sigma(r,m)^3;
                         deltaB(r,m+1)=deltaB(r,m+1)+(yPred(n)-yTrain(idsTrain(n)))*fBar(r)*XTrain(idsTrain(n),m);
                     end
                     % delta of b0
@@ -81,7 +81,7 @@ for it=1:nIt
     f=ones(NTest,nRules); % firing level of rules
     for n=1:NTest
         for r=1:nRules 
-            f(n,r)= prod(exp(-(XTest(n,:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
+            f(n,r)= prod(exp(-(XTest(n,:)-C(r,:)).^2./(2*Sigma(r,:).^2)));
         end
     end
     yR=[ones(NTest,1) XTest]*B';

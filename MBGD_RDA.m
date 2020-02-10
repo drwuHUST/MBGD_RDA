@@ -20,7 +20,7 @@ for m=1:M % Initialization
     C(m,:)=linspace(min(XTrain(:,m)),max(XTrain(:,m)),nMFs);
     Sigma(m,:)=std(XTrain(:,m));
 end
-minSigma=min(Sigma(:));
+minSigma=0.01*min(Sigma(:));
 
 
 %% Iterative update
