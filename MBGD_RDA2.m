@@ -1,38 +1,39 @@
 function [RMSEtrain,RMSEtest,mStepSize,stdStepSize]=...
-    MBGD_RDA2(XTrain,yTrain,XTest,yTest,alpha,rr,P,numRules,numIt,batchSize)
+    MBGD_RDA2(XTrain,yTrain,XTest,yTest,alpha,rr,P,nRules,nIt,Nbs)
 
 
 % alpha: learning rate
 % rr: regularization coefficient
 % P: dropRule rate
-% numRules: number of rules
-% numIt: maximum number of iterations
+% nRules: number of rules
+% nIt: maximum number of iterations
+% Nbs: batch size
 
 beta1=0.9; beta2=0.999;
 
 [N,M]=size(XTrain); NTest=size(XTest,1);
-batchSize=min(N,batchSize);
-B=zeros(numRules,M+1); % Rule consequents
+Nbs=min(N,Nbs);
+B=zeros(nRules,M+1); % Rule consequents
 % k-means initialization
-[ids,C,sumd] = kmeans(XTrain,numRules,'replicate',3);
+[ids,C,sumd] = kmeans(XTrain,nRules,'replicate',3);
 C=C'; sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd',M,1)/M;
 minSigma=.5*min(Sigma(:));
-for r=1:numRules
+for r=1:nRules
     B(r,1)=mean(yTrain(ids==r));
 end
 
 %% Iterative update
-RMSEtrain=zeros(1,numIt); RMSEtest=RMSEtrain; mStepSize=RMSEtrain; stdStepSize=RMSEtrain;
-mC=0; vC=0; mB=0; mSigma=0; vSigma=0; vB=0; yPred=nan(batchSize,1);
-for it=1:numIt
-    deltaC=zeros(M,numRules); deltaSigma=deltaC;  deltaB=rr*B; deltaB(:,1)=0; % consequent
-    f=ones(batchSize,numRules); % firing level of rules
-    idsTrain=datasample(1:N,batchSize,'replace',false);
-    idsGoodTrain=true(batchSize,1);
-    for n=1:batchSize
-        idsKeep=rand(1,numRules)<=P;
+RMSEtrain=zeros(1,nIt); RMSEtest=RMSEtrain; mStepSize=RMSEtrain; stdStepSize=RMSEtrain;
+mC=0; vC=0; mB=0; mSigma=0; vSigma=0; vB=0; yPred=nan(Nbs,1);
+for it=1:nIt
+    deltaC=zeros(M,nRules); deltaSigma=deltaC;  deltaB=rr*B; deltaB(:,1)=0; % consequent
+    f=ones(Nbs,nRules); % firing level of rules
+    idsTrain=datasample(1:N,Nbs,'replace',false);
+    idsGoodTrain=true(Nbs,1);
+    for n=1:Nbs
+        idsKeep=rand(1,nRules)<=P;
         f(n,~idsKeep)=0;
-        for r=1:numRules
+        for r=1:nRules
             if idsKeep(r)
                 f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
             end
@@ -40,12 +41,12 @@ for it=1:numIt
         if ~sum(f(n,:)) % special case: all f(n,:)=0; no dropRule
             idsKeep=~idsKeep;
             f(n,idsKeep)=1;
-            for r=1:numRules
+            for r=1:nRules
                 if idsKeep(r)
                     f(n,r)=prod(exp(-(XTrain(idsTrain(n),:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
                 end
             end
-            idsKeep=true(1,numRules);
+            idsKeep=true(1,nRules);
         end
         fBar=f(n,:)/sum(f(n,:));
         yR=[1 XTrain(idsTrain(n),:)]*B';
@@ -57,7 +58,7 @@ for it=1:numIt
         end
         
         % Compute delta
-        for r=1:numRules
+        for r=1:nRules
             if idsKeep(r)
                 temp=(yPred(n)-yTrain(idsTrain(n)))*(yR(r)*sum(f(n,:))-f(n,:)*yR')/sum(f(n,:))^2*f(n,r);
                 if ~isnan(temp) && abs(temp)<inf
@@ -77,9 +78,9 @@ for it=1:numIt
     % Training error
     RMSEtrain(it)=sqrt(sum((yTrain(idsTrain(idsGoodTrain))-yPred(idsGoodTrain)).^2)/sum(idsGoodTrain));
     % Test error
-    f=ones(NTest,numRules); % firing level of rules
+    f=ones(NTest,nRules); % firing level of rules
     for n=1:NTest
-        for r=1:numRules 
+        for r=1:nRules 
             f(n,r)= prod(exp(-(XTest(n,:)'-C(:,r)).^2./(2*Sigma(:,r).^2)));
         end
     end

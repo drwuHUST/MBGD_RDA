@@ -2,17 +2,16 @@ clc; clearvars; close all; rng(0);
 
 Mm=2; % number of MFs in each input domain
 alpha=.01; % initial learning rate
-Nbs=64; % batch size
 lambda=0.05; % L2 regularization coefficient
 P=0.5; % DropRule rate
-nIt=500; % number of iterations
-maxFeatures=5; % maximum number of features to use
+nRules=30; % number of rules
+nIt=300; % number of iterations
+Nbs=64; % batch size
 
 temp=load('NO2.mat'); 
 data=temp.data;
 X=data(:,1:end-1); y=data(:,end); y=y-mean(y);
 X = zscore(X); [N0,M]=size(X); 
-nRules=Mm^M; % number of rules
 N=round(N0*.7);
 idsTrain=datasample(1:N0,N,'replace',false);
 XTrain=X(idsTrain,:); yTrain=y(idsTrain);
@@ -22,13 +21,14 @@ yTest=y; yTest(idsTrain)=[];
 [RMSEtrain1,RMSEtest1]=MBGD_RDA2(XTrain,yTrain,XTest,yTest,alpha,lambda,P,nRules,nIt,Nbs);
 
 % Dimensionality reduction
+maxFeatures=5; % maximum number of features to use
 if M>maxFeatures
     [~,XPCA,latent]=pca(X);
     realDim98=find(cumsum(latent)>=.98*sum(latent),1,'first');
     usedDim=min(maxFeatures,realDim98);
     X=XPCA(:,1:usedDim); [N0,M]=size(X);
-    nRules=Mm^M; % number of rules
 end
+nRules=Mm^M; % number of rules
 XTrain=X(idsTrain,:); XTest=X; XTest(idsTrain,:)=[]; 
 
 % Specify the number of MFs in each input domain; Assume x1 has two MFs
