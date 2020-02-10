@@ -1,4 +1,6 @@
-function vec=idx2vec(idx,nMFs) % Convert from a scalar index of the rule to a vector indices of MFs
+function vec=idx2vec(idx,nMFs)
+% Convert from a scalar index of the rule to a vector indices of MFs
+
 vec=zeros(1,length(nMFs));
 prods=[1; cumprod(nMFs(end:-1:1))];
 if idx>prods(end)
