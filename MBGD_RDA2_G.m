@@ -18,11 +18,12 @@ W=zeros(nRules,M+1); % Rule consequents
 [ids,C] = kmeans(XTrain,nRules,'replicate',3);
 Sigma=C;
 for r=1:nRules
-    Sigma(r,:)=std(XTrain(ids==r,:));
+    Sigma(r,:)=10*std(XTrain(ids==r,:));
     W(r,1)=mean(yTrain(ids==r));
 end
 Sigma(Sigma==0)=mean(Sigma(:));
 minSigma=.01*min(Sigma(:));
+maxSigma=10*max(Sigma(:));
 
 %% Iterative update
 RMSEtrain=zeros(1,nIt); RMSEtest=RMSEtrain; 
@@ -93,7 +94,7 @@ for it=1:nIt
     mSigmaHat=mSigma/(1-beta1^it);
     vSigmaHat=vSigma/(1-beta2^it);
     lrSigma=min(ub,max(lb,alpha./(sqrt(vSigmaHat)+10^(-8))));
-    Sigma=max(.1*minSigma,Sigma-lrSigma.*mSigmaHat);
+    Sigma=min(maxSigma,max(minSigma,Sigma-lrSigma.*mSigmaHat));
     
     mW=beta1*mW+(1-beta1)*deltaW;
     vW=beta2*vW+(1-beta2)*deltaW.^2;
