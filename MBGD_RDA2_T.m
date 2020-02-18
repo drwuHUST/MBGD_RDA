@@ -15,12 +15,14 @@ beta1=0.9; beta2=0.999;
 Nbs=min(N,Nbs);
 W=zeros(nRules,M+1); % Rule consequents
 % k-means initialization
-[ids,C,sumd] = kmeans(XTrain,nRules,'replicate',3);
-sumd(sumd==0)=mean(sumd); Sigma=repmat(sumd,1,M)/M;
-A=C-Sigma; D=C+Sigma; B=C-.25*Sigma; C=C+.25*Sigma;
+[ids,C] = kmeans(XTrain,nRules,'replicate',3);
+Sigma=C;
 for r=1:nRules
+    Sigma(r,:)=std(XTrain(ids==r,:));
     W(r,1)=mean(yTrain(ids==r));
 end
+Sigma(Sigma==0)=mean(Sigma(:));
+A=C-Sigma; D=C+Sigma; B=C-.25*Sigma; C=C+.25*Sigma;
 
 %% Iterative update
 RMSEtrain=zeros(1,nIt); RMSEtest=RMSEtrain; 
