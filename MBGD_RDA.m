@@ -40,10 +40,9 @@ nRules=nMFs^M; % number of rules
 C=zeros(M,nMFs); Sigma=C; W=zeros(nRules,M+1);
 for m=1:M % Initialization
     C(m,:)=linspace(min(XTrain(:,m)),max(XTrain(:,m)),nMFs);
-    Sigma(m,:)=10*std(XTrain(:,m));
+    Sigma(m,:)=std(XTrain(:,m));
 end
-minSigma=0.01*min(Sigma(:));
-maxSigma=10*max(Sigma(:));
+minSigma=min(Sigma(:));
 
 %% Iterative update
 mu=zeros(M,nMFs);  RMSEtrain=zeros(1,nIt); RMSEtest=RMSEtrain;
@@ -122,7 +121,7 @@ for it=1:nIt
     mSigmaHat=mSigma/(1-beta1^it);
     vSigmaHat=vSigma/(1-beta2^it);
     lrSigma=min(ub,max(lb,alpha./(sqrt(vSigmaHat)+10^(-8))));
-    Sigma=min(maxSigma,max(minSigma,Sigma-lrSigma.*mSigmaHat));
+    Sigma=max(minSigma,Sigma-lrSigma.*mSigmaHat);
     
     mW=beta1*mW+(1-beta1)*deltaW;
     vW=beta2*vW+(1-beta2)*deltaW.^2;

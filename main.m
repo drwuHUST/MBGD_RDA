@@ -7,10 +7,10 @@ nMFs=2; % number of MFs in each input domain, used in MBGD_RDA and MBGD_RDA_T
 alpha=.01; % initial learning rate
 lambda=0.05; % L2 regularization coefficient
 P=0.5; % DropRule rate
-nIt=200; % number of iterations
+nIt=500; % number of iterations
 Nbs=64; % batch size
 
-temp=load('NO2.mat');
+temp=load('PM10.mat');
 data=temp.data;
 X=data(:,1:end-1); y=data(:,end); y=y-mean(y);
 X = zscore(X); [N0,M]=size(X);
