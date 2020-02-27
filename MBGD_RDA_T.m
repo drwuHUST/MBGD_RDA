@@ -1,4 +1,4 @@
-function [RMSEtrain,RMSEtest,A,B,C,D,W]=MBGD_RDA_T(XTrain,yTrain,XTest,yTest,alpha,rr,P,nMFs,nIt,Nbs)
+function [RMSEtrain,RMSEtest,A,B,C,D,W,yPredTest]=MBGD_RDA_T(XTrain,yTrain,XTest,yTest,alpha,rr,P,nMFs,nIt,Nbs)
 
 % This function implements a variant of the MBGD-RDA algorithm in the following paper:
 %

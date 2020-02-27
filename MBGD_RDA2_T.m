@@ -1,9 +1,10 @@
-function [RMSEtrain,RMSEtest,A,B,C,D,W]=MBGD_RDA2_T(XTrain,yTrain,XTest,yTest,alpha,rr,P,nRules,nIt,Nbs)
+function [RMSEtrain,RMSEtest,A,B,C,D,W,yPredTest,A0,B0,C0,D0,W0]=...
+    MBGD_RDA2_T(XTrain,yTrain,XTest,yTest,alpha,rr,P,nRules,nIt,Nbs,A0,B0,C0,D0,W0)
 
 % This function implements a variant of the MBGD-RDA algorithm in the following paper:
 %
-% Dongrui Wu, Ye Yuan, Jian Huang and Yihua Tan, "Optimize TSK Fuzzy Systems for Regression Problems: 
-% Mini-Batch Gradient Descent with Regularization, DropRule and AdaBound (MBGD-RDA)," IEEE Trans. 
+% Dongrui Wu, Ye Yuan, Jian Huang and Yihua Tan, "Optimize TSK Fuzzy Systems for Regression Problems:
+% Mini-Batch Gradient Descent with Regularization, DropRule and AdaBound (MBGD-RDA)," IEEE Trans.
 % on Fuzzy Systems, 2020, accepted.
 %
 % It uses trapezoidal MFs, and specifies the total number of rules by nRules.
@@ -16,35 +17,40 @@ function [RMSEtrain,RMSEtest,A,B,C,D,W]=MBGD_RDA2_T(XTrain,yTrain,XTest,yTest,al
 % XTest: NTest*M matrix of the test inputs
 % yTest: NTest*1 vector of the labels for XTest
 % alpha: scalar, learning rate
-% rr: scalar, L2 regularization coefficient 
+% rr: scalar, L2 regularization coefficient
 % P: scalar in [0.5, 1), dropRule rate
 % nRules: scalar in [2, 100], total number of rules
 % nIt: scalar, maximum number of iterations
 % Nbs: batch size. typically 32 or 64
+% A0,B0,C0,D0: M*nRules matrices specifying the initial a, b, c, d parameters of the trapezoidal MFs. See derivations.pdf
+% W: nRules*(M+1) matrix of the initial consequent parameters for the rules.
 %
 % %% Outputs:
 % RMSEtrain: 1*nIt vector of the training RMSE at different iterations
 % RMSEtest: 1*nIt vector of the test RMSE at different iterations
 % A,B,C,D: M*nRules matrices specifying the a, b, c, d parameters of the trapezoidal MFs. See derivations.pdf
-% W: nRules*(M+1) matrix of the consequent parameters for the rules. 
+% W: nRules*(M+1) matrix of the consequent parameters for the rules.
 
 beta1=0.9; beta2=0.999;
 
 [N,M]=size(XTrain); NTest=size(XTest,1);
 Nbs=min(N,Nbs);
-W=zeros(nRules,M+1); % Rule consequents
-% k-means initialization
-[ids,C] = kmeans(XTrain,nRules,'replicate',3);
-Sigma=C;
-for r=1:nRules
-    Sigma(r,:)=std(XTrain(ids==r,:));
-    W(r,1)=mean(yTrain(ids==r));
+%% k-means initialization
+if nargin<11
+    W0=zeros(nRules,M+1); % Rule consequents
+    [ids,C0] = kmeans(XTrain,nRules,'replicate',3);
+    Sigma=C0;
+    for r=1:nRules
+        Sigma(r,:)=std(XTrain(ids==r,:));
+        W0(r,1)=mean(yTrain(ids==r));
+    end
+    Sigma(Sigma==0)=mean(Sigma(:));
+    A0=C0-10*Sigma; D0=C0+10*Sigma; B0=C0-.5*Sigma; C0=C0+.5*Sigma;
 end
-Sigma(Sigma==0)=mean(Sigma(:));
-A=C-5*Sigma; D=C+5*Sigma; B=C-Sigma; C=C+Sigma;
+A=A0; B=B0; C=C0; D=D0; W=W0;
 
 %% Iterative update
-RMSEtrain=zeros(1,nIt); RMSEtest=RMSEtrain; 
+RMSEtrain=zeros(1,nIt); RMSEtest=RMSEtrain;
 mA=0; vA=0; mB=0; vB=0; mC=0; vC=0; mD=0; vD=0;
 mW=0; vW=0; yPred=nan(Nbs,1);
 for it=1:nIt
