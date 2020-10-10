@@ -1,6 +1,6 @@
 Matlab implementation of the MBGD-RDA algorithm and its variants in the following paper of TSK fuzzy systems for regression problems:
 
-Dongrui Wu, Ye Yuan, Jian Huang and Yihua Tan, "Optimize TSK Fuzzy Systems for Regression Problems: Mini-Batch Gradient Descent with Regularization, DropRule and AdaBound (MBGD-RDA)," IEEE Trans. on Fuzzy Systems, 2020, accepted.
+D. Wu*, Y. Yuan, J. Huang and Y. Tan*, "Optimize TSK Fuzzy Systems for Regression Problems: Mini-Batch Gradient Descent with Regularization, DropRule and AdaBound (MBGD-RDA)," IEEE Trans. on Fuzzy Systems, 28(5), pp. 1003-1015, 2020.
 
 By Dongrui Wu, drwu@hust.edu.cn
 
